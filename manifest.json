@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "Stream Study — Public Chat Notebook",
+  "version": "0.1.0",
+  "description": "Capture loaded YouTube live-chat messages and observed Super Chat and Super Sticker purchases locally for research.",
+  "permissions": ["storage", "activeTab"],
+  "host_permissions": ["https://www.youtube.com/*"],
+  "background": {"service_worker": "background.js", "type": "module"},
+  "action": {"default_title": "Open Stream Study"},
+  "content_scripts": [{
+    "matches": ["https://www.youtube.com/*"],
+    "js": ["core.js", "content.js"],
+    "all_frames": true,
+    "run_at": "document_idle"
+  }],
+  "content_security_policy": {"extension_pages": "script-src 'self'; object-src 'none'"}
+}

@@ -1,0 +1,47 @@
+STREAM STUDY — FIRST RUN
+
+Use desktop Google Chrome or Microsoft Edge.
+
+1. Extract the ZIP. Keep the extracted folder on your computer.
+2. Open chrome://extensions (Chrome) or edge://extensions (Edge).
+3. Turn on Developer mode.
+4. Click Load unpacked and choose the folder containing manifest.json.
+   From GitHub's main-branch ZIP, that folder is sym-main.
+5. Open a currently live YouTube stream. Refresh the page if it was already open.
+6. Expand its chat and choose Live chat instead of Top chat.
+7. Click the browser's Extensions puzzle icon, then Stream Study.
+8. In the notebook that opens, click Start capture.
+
+The YouTube tab must remain open and your computer must stay awake.
+You can close the notebook tab while capture runs.
+
+FIRST CHECK
+
+- The notebook should show a recent Last collector check-in.
+- New chat messages should appear in the table.
+- Compare any Super Chat / Super Sticker captured with its visible message.
+- Click Pause capture, then Export CSV or JSON to save your results.
+
+No donations happening right now? Use Try sample data to check the notebook and
+export buttons. Sample data is clearly labeled and stays separate from captures.
+
+If the notebook says Waiting for chat or Check connection:
+- Refresh the YouTube tab after installing the extension.
+- Confirm this is a currently live stream with an open live-chat panel.
+- Make sure the extension is allowed to read youtube.com in its browser settings.
+- Open the notebook from the extension icon on the YouTube tab again.
+
+ABOUT THIS PROTOTYPE
+
+No API key, Google Cloud account, server, or subscription is needed.
+Your collected data stays in this browser profile.
+This prototype passed its offline code tests. A full browser test and a real
+YouTube livestream test are still outstanding.
+
+Totals cover observed Super Chats and Super Stickers with readable currencies
+and stable message IDs. Bare currency symbols such as $ may be marked Needs
+review and excluded from the confirmed total. These records still export.
+Only chat loaded into the page can be captured; this is not a guaranteed full
+donation history or a measure of a creator's net earnings.
+
+See README.md for detailed counting rules, coverage limits, and storage behavior.

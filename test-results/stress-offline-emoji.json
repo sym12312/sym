@@ -1,0 +1,295 @@
+{
+  "kind": "offline-helper-and-serialization-benchmark",
+  "generatedAt": "2026-10-23T03:42:38.424Z",
+  "status": "passed",
+  "nodeVersion": "v24.19.0",
+  "platform": "linux",
+  "arch": "x64",
+  "workload": {
+    "paidRate": 10,
+    "durationSeconds": 7200,
+    "chatRate": 0,
+    "messageLength": 200,
+    "messageStyle": "emoji",
+    "maxEvents": 1000000,
+    "paidRows": 72000,
+    "ordinaryRows": 0,
+    "totalUniqueRows": 72000,
+    "simulatedDurationSeconds": 7200,
+    "elapsedWallTimeMs": 6919.782,
+    "messageLengthUnit": "Unicode code points",
+    "messageUtf8BytesSample": {
+      "rows": 400,
+      "min": 770,
+      "max": 770,
+      "average": 770,
+      "utf16CodeUnitsMin": 390,
+      "utf16CodeUnitsMax": 390
+    },
+    "replayDeliveries": 83436,
+    "duplicateDeliveries": 7200,
+    "incompleteBeforeHydrationDeliveries": 4236
+  },
+  "expected": {
+    "paidCount": 72000,
+    "countedPaidCount": 72000,
+    "unresolvedPaidCount": 0,
+    "chatCount": 0,
+    "usdMicros": "72000000000"
+  },
+  "actual": {
+    "uniqueIds": 72000,
+    "stats": {
+      "chatCount": 0,
+      "paidCount": 72000,
+      "countedPaidCount": 72000,
+      "unresolvedPaidCount": 0,
+      "membershipCount": 0,
+      "giftCount": 0,
+      "totals": {
+        "USD": "72000000000"
+      }
+    }
+  },
+  "checks": {
+    "identityCases": {
+      "passed": true,
+      "duplicateReplays": 100,
+      "hydration": true,
+      "blankRerender": true,
+      "provisionalIdReplacement": true,
+      "firstObservationPreserved": true
+    },
+    "parser": {
+      "calls": 72000,
+      "totalMicros": "72000000000"
+    },
+    "csv": {
+      "passed": true,
+      "recordsIncludingHeader": 72001,
+      "dataRecords": 72000,
+      "columns": 13,
+      "validator": "Independent strict CSV state machine; all cells and unique IDs checked"
+    },
+    "csvSpecialCharacters": {
+      "passed": true,
+      "recordsIncludingHeader": 9,
+      "dataRecords": 8,
+      "columns": 13,
+      "validator": "Independent strict CSV state machine; all cells and unique IDs checked"
+    }
+  },
+  "exports": {
+    "runtimeResponse": {
+      "shape": "{ok:true,session,events}",
+      "utf8Bytes": 81324168,
+      "sha256": "ac1f556ae898fe593a8ab1aa2a22403b3f6abe224d9836e5192504f773009e2a",
+      "wholeStringMaterialized": true,
+      "sentThroughChromeRuntime": false
+    },
+    "csv": {
+      "utf8Bytes": 68940167,
+      "sha256": "8a16ed3e90170afc01c1389fb12e188adadcde9e122dbba3d0c38070619b09a0",
+      "wholeStringMaterialized": true,
+      "fullIndependentParsePassed": true
+    },
+    "jsonDownload": {
+      "shape": "{schemaVersion:1,exportedAt,session,events}, pretty printed with2spaces",
+      "utf8Bytes": 89620548,
+      "sha256": "6580d3f8a48c5b02a7341fc461029211db3d6fc9e409053e4e7f28f91cb43c0f",
+      "wholeStringMaterialized": true
+    }
+  },
+  "mixedChatProjection": {
+    "measurement": "ESTIMATE: representative ordinary-message serialization; no additional full mixed array or payload allocated",
+    "chatRatePerSecond": 100,
+    "paidRows": 72000,
+    "ordinaryRows": 720000,
+    "combinedRows": 792000,
+    "sampleRows": 400,
+    "estimatedExtraOrdinaryRowsBeyondActualRun": 720000,
+    "averageOrdinaryJsonRecordUtf8Bytes": 1107.375,
+    "averageOrdinaryCsvRecordUtf8Bytes": 934.5,
+    "estimatedRuntimeResponseUtf8Bytes": 879354168,
+    "estimatedCsvUtf8Bytes": 741780167,
+    "assumptions": "Same event schema, fixed-width IDs, cyclic text mix and 10% duplicate-delivery lastSeenAt fields. Projection does not adjust small session-summary digit changes or model browser/IndexedDB memory. If actual chat rate exceeds100/sec, size remains the actual larger run."
+  },
+  "phases": {
+    "referenceIdentityChecks": {
+      "durationMs": 3.885
+    },
+    "parseAmount": {
+      "durationMs": 905.723,
+      "callsPerSecond": 79494.503,
+      "note": "Includes per-result assertions and checksum; accelerated Node helper execution, not browser capture throughput"
+    },
+    "generateAndReferenceReplay": {
+      "durationMs": 2126.492
+    },
+    "materializeOrderedEvents": {
+      "durationMs": 19.257
+    },
+    "runtimeResponseJsonSerialize": {
+      "durationMs": 423.678
+    },
+    "csvSerialize": {
+      "durationMs": 341.318
+    },
+    "csvValidateAllCells": {
+      "durationMs": 1320.793
+    },
+    "jsonDownloadSerialize": {
+      "durationMs": 534.791
+    },
+    "mixedChatSizeProjection": {
+      "durationMs": 11.642
+    }
+  },
+  "memory": {
+    "explicitGcAvailable": true,
+    "baseline": {
+      "label": "baseline after optional GC",
+      "elapsedMs": 6.115,
+      "rssBytes": 34078720,
+      "heapUsedBytes": 5095152,
+      "heapTotalBytes": 8384512,
+      "externalBytes": 2352536,
+      "processPeakRssBytes": 34078720
+    },
+    "processPeakRssBytes": 615546880,
+    "peakRssMinusBaselineRssBytes": 581468160,
+    "largestObservedHeapUsedBytes": 387324472,
+    "note": "Endpoint heap samples are not a true peak heap measurement. OS process-lifetime peak RSS includes Node and all benchmark phases. Each export string is released before the next export; event Map and array remain retained.",
+    "samples": [
+      {
+        "label": "baseline after optional GC",
+        "elapsedMs": 6.115,
+        "rssBytes": 34078720,
+        "heapUsedBytes": 5095152,
+        "heapTotalBytes": 8384512,
+        "externalBytes": 2352536,
+        "processPeakRssBytes": 34078720
+      },
+      {
+        "label": "after referenceIdentityChecks",
+        "elapsedMs": 10.23,
+        "rssBytes": 34603008,
+        "heapUsedBytes": 5329712,
+        "heapTotalBytes": 8646656,
+        "externalBytes": 2352540,
+        "processPeakRssBytes": 34603008
+      },
+      {
+        "label": "after parseAmount",
+        "elapsedMs": 916.067,
+        "rssBytes": 44163072,
+        "heapUsedBytes": 7039936,
+        "heapTotalBytes": 10743808,
+        "externalBytes": 2352540,
+        "processPeakRssBytes": 44163072
+      },
+      {
+        "label": "after generateAndReferenceReplay",
+        "elapsedMs": 3042.767,
+        "rssBytes": 272318464,
+        "heapUsedBytes": 150418032,
+        "heapTotalBytes": 234958848,
+        "externalBytes": 2352540,
+        "processPeakRssBytes": 272318464
+      },
+      {
+        "label": "after materializeOrderedEvents",
+        "elapsedMs": 3062.194,
+        "rssBytes": 275070976,
+        "heapUsedBytes": 151604120,
+        "heapTotalBytes": 236113920,
+        "externalBytes": 2352540,
+        "processPeakRssBytes": 275070976
+      },
+      {
+        "label": "after runtimeResponseJsonSerialize",
+        "elapsedMs": 3486.143,
+        "rssBytes": 419094528,
+        "heapUsedBytes": 236019952,
+        "heapTotalBytes": 380612608,
+        "externalBytes": 2352540,
+        "processPeakRssBytes": 526901248
+      },
+      {
+        "label": "runtime JSON released; event Map and array retained",
+        "elapsedMs": 3871.286,
+        "rssBytes": 311558144,
+        "heapUsedBytes": 96433496,
+        "heapTotalBytes": 267702272,
+        "externalBytes": 2352540,
+        "processPeakRssBytes": 526901248
+      },
+      {
+        "label": "after csvSerialize",
+        "elapsedMs": 4212.852,
+        "rssBytes": 424374272,
+        "heapUsedBytes": 302864960,
+        "heapTotalBytes": 381603840,
+        "externalBytes": 2352540,
+        "processPeakRssBytes": 526901248
+      },
+      {
+        "label": "after csvValidateAllCells",
+        "elapsedMs": 5912.73,
+        "rssBytes": 539070464,
+        "heapUsedBytes": 387324472,
+        "heapTotalBytes": 494989312,
+        "externalBytes": 2382747,
+        "processPeakRssBytes": 588685312
+      },
+      {
+        "label": "CSV released; event Map and array retained",
+        "elapsedMs": 5953.609,
+        "rssBytes": 366493696,
+        "heapUsedBytes": 96498824,
+        "heapTotalBytes": 268750848,
+        "externalBytes": 2382747,
+        "processPeakRssBytes": 588685312
+      },
+      {
+        "label": "after jsonDownloadSerialize",
+        "elapsedMs": 6488.665,
+        "rssBytes": 491028480,
+        "heapUsedBytes": 221033248,
+        "heapTotalBytes": 393535488,
+        "externalBytes": 2382747,
+        "processPeakRssBytes": 615546880
+      },
+      {
+        "label": "JSON download released; event Map and array retained",
+        "elapsedMs": 6904.887,
+        "rssBytes": 366551040,
+        "heapUsedBytes": 96502056,
+        "heapTotalBytes": 242274304,
+        "externalBytes": 2382747,
+        "processPeakRssBytes": 615546880
+      },
+      {
+        "label": "after mixedChatSizeProjection",
+        "elapsedMs": 6918.138,
+        "rssBytes": 367337472,
+        "heapUsedBytes": 106467432,
+        "heapTotalBytes": 243429376,
+        "externalBytes": 2382747,
+        "processPeakRssBytes": 615546880
+      }
+    ]
+  },
+  "productionSourceSha256": {
+    "core": "921dd94b5ac7b7941886f3b3b76112d37f75a2357f227b2d883ece57e2b29dd5",
+    "storage": "23be78057d3f3d2a3031757deeb5119a36e720b8f451cfa4b76081ef11c5c2b8"
+  },
+  "limitations": [
+    "Runs production parseAmount, adjustStats, toCsv and native JSON.stringify in Node; does not call storage.ingestEvents.",
+    "Duplicate/hydration checks use an explicitly labeled reference Map model, not IndexedDB.",
+    "No real YouTube page, DOM collector, Chrome runtime transport, service-worker lifecycle, disk quota, or dashboard rendering was exercised.",
+    "Accelerated generation representing two hours is not a two-hour real-time soak and does not establish live capture throughput.",
+    "Mixed-chat projection is an estimate unless the full ordinary-message workload was explicitly generated with --chat-rate100.",
+    "UTF8 byte counts do not establish whether a browser can send that message; browser IPC limits and memory behavior require browser testing."
+  ]
+}

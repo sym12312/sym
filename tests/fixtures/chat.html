@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Stream Study chat fixture — synthetic data</title></head>
+<body>
+  <h1>Synthetic YouTube-style chat</h1>
+  <p>This fixture contains invented names, messages, and purchases. It is not a recording of a real stream.</p>
+  <yt-live-chat-header-renderer>
+    <div id="view-selector"><span id="label">Live chat</span></div>
+  </yt-live-chat-header-renderer>
+  <yt-live-chat-ticker-renderer>
+    <yt-live-chat-ticker-paid-message-item-renderer>
+      <yt-live-chat-paid-message-renderer id="fixture-paid-1">
+        <span id="author-name">River</span><span id="purchase-amount">US$5.00</span>
+        <span id="message">Pinned copy — should never be collected from this ticker.</span>
+      </yt-live-chat-paid-message-renderer>
+    </yt-live-chat-ticker-paid-message-item-renderer>
+  </yt-live-chat-ticker-renderer>
+  <yt-live-chat-item-list-renderer>
+    <div id="items">
+      <yt-live-chat-text-message-renderer id="fixture-chat-1">
+        <span id="timestamp">12:00 PM</span><span id="author-name">Sky</span>
+        <span id="message">Hello <img alt="👋" src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs="> everyone!</span>
+      </yt-live-chat-text-message-renderer>
+      <yt-live-chat-paid-message-renderer id="fixture-paid-1">
+        <span id="timestamp">12:01 PM</span><span id="author-name">River</span>
+        <span id="purchase-amount">US$5.00</span><span id="message">Thanks for explaining that.</span>
+      </yt-live-chat-paid-message-renderer>
+      <yt-live-chat-paid-sticker-renderer id="fixture-sticker-1">
+        <span id="timestamp">12:02 PM</span><span id="author-name">Cedar</span>
+        <span id="purchase-amount-chip">€2,50</span>
+        <div id="sticker"><img alt="Animated applause sticker" src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs="></div>
+      </yt-live-chat-paid-sticker-renderer>
+      <yt-live-chat-paid-message-renderer id="fixture-ambiguous-1">
+        <span id="timestamp">12:03 PM</span><span id="author-name">Sage</span>
+        <span id="purchase-amount">$10.00</span><span id="message">Currency must stay unresolved.</span>
+      </yt-live-chat-paid-message-renderer>
+      <yt-live-chat-membership-item-renderer id="fixture-member-1">
+        <span id="timestamp">12:04 PM</span><span id="author-name">Robin</span>
+        <span id="header-subtext">Member for 4 months</span>
+      </yt-live-chat-membership-item-renderer>
+      <yt-live-chat-sponsorships-gift-purchase-announcement-renderer id="fixture-membership-gift-1">
+        <span id="timestamp">12:05 PM</span><span id="author-name">Ash</span>
+        <span id="header-primary-text">Gifted 5 memberships</span>
+      </yt-live-chat-sponsorships-gift-purchase-announcement-renderer>
+      <yt-live-chat-paid-message-renderer data-fixture="missing-id">
+        <span id="timestamp">12:06 PM</span><span id="author-name">Pine</span>
+        <span id="purchase-amount">GBP 3.00</span><span id="message">Missing stable identity.</span>
+      </yt-live-chat-paid-message-renderer>
+    </div>
+  </yt-live-chat-item-list-renderer>
+</body>
+</html>

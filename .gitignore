@@ -1,0 +1,7 @@
+node_modules/
+test-results/*
+!test-results/stress-offline.json
+!test-results/stress-offline-emoji.json
+__pycache__/
+*.py[cod]
+*.zip

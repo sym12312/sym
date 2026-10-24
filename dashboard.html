@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stream Study · Public live-chat notebook</title>
+  <link rel="stylesheet" href="dashboard.css">
+  <script src="core.js" defer></script>
+  <script src="dashboard.js" defer></script>
+</head>
+<body>
+  <div class="workspace">
+    <aside class="sidebar" aria-label="Workspace and saved sessions">
+      <a class="brand" href="dashboard.html" aria-label="Stream Study home">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span>Stream Study<span class="brand-subtitle">Public live-chat notebook</span></span>
+      </a>
+
+      <div class="sidebar-section">
+        <div class="eyebrow">Your workspace</div>
+        <div class="workspace-label"><span class="small-dot" aria-hidden="true"></span>Saved on this device</div>
+      </div>
+
+      <div class="sidebar-section">
+        <label class="eyebrow" for="session-select">Saved sessions</label>
+        <select id="session-select" aria-describedby="session-count"><option value="">No sessions yet</option></select>
+        <p class="muted small" id="session-count">Your captures will appear here.</p>
+        <div id="session-history" class="session-history"></div>
+      </div>
+
+      <div class="start-guide">
+        <span class="eyebrow">Start with a stream</span>
+        <ol>
+          <li>Open a YouTube livestream in another tab.</li>
+          <li>Select <strong>Live chat</strong> in its chat panel.</li>
+          <li>Click the Stream Study extension icon, then start capture.</li>
+        </ol>
+        <p>Just installed? Refresh the YouTube tab first.</p>
+      </div>
+
+      <div class="sidebar-footer">
+        <span class="lock-icon" aria-hidden="true">▣</span>
+        <div><strong>Local by design</strong><p>No API key. No account. No uploads.</p></div>
+      </div>
+    </aside>
+
+    <main>
+      <header class="page-header">
+        <div><div class="eyebrow">Watch. Collect. Learn.</div><h1>Stream notebook<span class="title-dot">.</span></h1></div>
+        <button id="demo-button" class="button button-quiet" type="button"><span aria-hidden="true">◇</span> Try sample data</button>
+      </header>
+
+      <div id="error-notice" class="notice error" role="alert" hidden></div>
+
+      <section class="capture-panel" aria-labelledby="capture-heading">
+        <div class="capture-topline">
+          <div class="source-label"><span class="youtube-icon" aria-hidden="true">▶</span><span>YouTube · Browser capture</span></div>
+          <span id="status-badge" class="status-badge neutral" role="status"><span class="status-dot" aria-hidden="true"></span><span id="status-text">Ready when you are</span></span>
+        </div>
+        <div class="capture-heading-row">
+          <div class="capture-title-block"><h2 id="capture-heading">Your next stream study starts here.</h2><p id="capture-description" class="muted">Open a livestream and launch this notebook from the extension icon.</p></div>
+          <div class="capture-actions">
+            <button id="pause-button" class="button button-secondary" type="button" hidden>Pause capture</button>
+            <button id="resume-button" class="button button-secondary" type="button" hidden>Resume session</button>
+            <button id="start-button" class="button button-primary" type="button" disabled><span aria-hidden="true">+</span> Start capture</button>
+          </div>
+        </div>
+        <div class="capture-details">
+          <div><span class="detail-label">Capture started</span><strong id="started-at">—</strong></div>
+          <div><span class="detail-label">Last collector check-in</span><strong id="last-seen">—</strong></div>
+          <div><span class="detail-label">Chat view</span><strong id="chat-mode">Not connected</strong></div>
+          <div><span class="detail-label">Recorded interruptions</span><strong id="gap-count">—</strong></div>
+        </div>
+        <div id="capture-notice" class="capture-notice" role="status">Only messages loaded into the YouTube chat panel can be captured. Keep the stream tab open.</div>
+      </section>
+
+      <section class="metrics" aria-label="Observed session totals">
+        <article class="metric-card"><div class="metric-label">Chat messages <span aria-hidden="true">↗</span></div><div id="chat-count" class="metric-value">0</div><p>Captured public comments</p></article>
+        <article class="metric-card"><div class="metric-label">Paid events <span aria-hidden="true">↗</span></div><div id="paid-count" class="metric-value">0</div><p>Super Chats + Super Stickers</p></article>
+        <article class="metric-card"><div class="metric-label">Needs review <span aria-hidden="true">○</span></div><div id="review-count" class="metric-value">0</div><p>Excluded from monetary totals</p></article>
+        <article class="metric-card totals-card"><div class="metric-label">Observed purchase totals</div><div id="currency-totals" class="currency-totals"><span class="empty-total">No purchases counted yet</span></div><p id="totals-caption">Each currency stays separate</p></article>
+      </section>
+
+      <section class="notebook-panel" aria-labelledby="events-heading">
+        <div class="notebook-header">
+          <div><h2 id="events-heading">The conversation</h2><p id="events-caption" class="muted small">Captured comments and paid events, in one place.</p></div>
+          <div class="export-actions"><button id="csv-button" class="button button-secondary compact" type="button" disabled>↓ Export CSV</button><button id="json-button" class="button button-quiet compact" type="button" disabled>JSON</button></div>
+        </div>
+        <div class="filters">
+          <div class="search-field"><span aria-hidden="true">⌕</span><label class="sr-only" for="event-search">Search captured messages or names</label><input id="event-search" type="search" placeholder="Search messages or names…" autocomplete="off"></div>
+          <label class="sr-only" for="event-type">Filter by event type</label>
+          <select id="event-type"><option value="all">All events</option><option value="paid">Paid events</option><option value="chat">Chat messages</option><option value="membership">Memberships & gifts</option><option value="review">Needs review</option></select>
+        </div>
+        <div class="table-wrap">
+          <table id="event-table" hidden>
+            <thead><tr><th scope="col">Captured</th><th scope="col">Participant</th><th scope="col">Type</th><th scope="col">Message</th><th scope="col" class="amount-column">Amount shown</th></tr></thead>
+            <tbody id="event-rows"></tbody>
+          </table>
+          <div id="empty-state" class="empty-state"><div class="empty-glyph" aria-hidden="true"><span></span><span></span><span></span></div><h3 id="empty-title">A little observation goes a long way.</h3><p id="empty-description">Start a capture to see the conversation take shape, or explore the notebook with sample data.</p></div>
+        </div>
+        <div class="table-footer"><p id="display-count">No events captured</p><p id="time-zone"></p></div>
+      </section>
+
+      <footer class="main-footer"><p>Totals describe observed purchases, not creator earnings. Messages loaded at the start may predate your capture.</p><button id="delete-button" class="text-button danger" type="button" hidden>Delete this session</button></footer>
+      <details id="coverage-details" class="coverage-details" hidden><summary>Collection windows and interruptions</summary><div id="coverage-log"></div></details>
+    </main>
+  </div>
+</body>
+</html>
