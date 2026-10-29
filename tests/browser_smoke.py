@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise the unpacked extension against a synthetic YouTube live-chat page.
+"""Exercise the unpacked extension against a synthetic YouTube live-chat and replay pages.
 
 Run from the project root with Python + Playwright + Chromium installed:
     python tests/browser_smoke.py
@@ -12,6 +12,8 @@ the extension's wiring and counting behavior, not YouTube's current markup.
 from __future__ import annotations
 
 import argparse
+import csv as csv_module
+import io
 import json
 import tempfile
 from pathlib import Path
@@ -54,24 +56,54 @@ CHAT_HTML = """<!doctype html><html lang="en"><head><meta charset="utf-8">
 </yt-live-chat-renderer></body></html>"""
 
 
+REPLAY_HTML = """<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>Chat replay — local test</title></head><body>
+<yt-live-chat-renderer>
+  <yt-live-chat-header-renderer>
+    <yt-dropdown-menu id="view-selector"><span id="label">Live chat replay</span></yt-dropdown-menu>
+  </yt-live-chat-header-renderer>
+  <yt-live-chat-item-list-renderer><div id="item-scroller"><div id="items">
+    <yt-live-chat-text-message-renderer id="replay-chat">
+      <span id="timestamp">0:00</span><span id="author-name">Replay viewer</span>
+      <span id="message">At the beginning</span>
+    </yt-live-chat-text-message-renderer>
+    <yt-live-chat-paid-message-renderer id="replay-paid">
+      <span id="timestamp">1:02:03</span><span id="author-name">Replay supporter</span>
+      <span id="purchase-amount">USD 5.00</span><span id="message">Great explanation</span>
+    </yt-live-chat-paid-message-renderer>
+    <yt-live-chat-paid-sticker-renderer id="replay-sticker">
+      <span id="timestamp">-0:05</span><span id="author-name">Early supporter</span>
+      <span id="purchase-amount">EUR 2.50</span><img id="sticker" alt="Applause">
+    </yt-live-chat-paid-sticker-renderer>
+    <yt-live-chat-paid-message-renderer id="replay-unknown-time">
+      <span id="timestamp">12:07 PM</span><span id="author-name">Unknown timestamp</span>
+      <span id="purchase-amount">USD 1.00</span><span id="message">No timeline guess</span>
+    </yt-live-chat-paid-message-renderer>
+  </div></div></yt-live-chat-item-list-renderer>
+</yt-live-chat-renderer></body></html>"""
+
+
 def route_fixture(route):
     parsed = urlparse(route.request.url)
     if parsed.hostname != "www.youtube.com":
         route.abort()
         return
     if parsed.path == "/watch":
-        video_id = parse_qs(parsed.query).get("v", [VIDEO_ID])[0]
+        query = parse_qs(parsed.query)
+        video_id = query.get("v", [VIDEO_ID])[0]
+        chat_path = "/live_chat_replay" if query.get("replay") == ["1"] else "/live_chat"
         route.fulfill(
             status=200,
             content_type="text/html",
             body=(
                 "<!doctype html><html><head><title>Mock stream — Stream Study test</title>"
                 "</head><body><h1>Mock stream</h1><iframe id='chatframe' "
-                f"src='/live_chat?v={video_id}'></iframe></body></html>"
+                f"src='{chat_path}?v={video_id}'></iframe></body></html>"
             ),
         )
     elif parsed.path in {"/live_chat", "/live_chat_replay"}:
-        route.fulfill(status=200, content_type="text/html", body=CHAT_HTML)
+        route.fulfill(status=200, content_type="text/html",
+                      body=REPLAY_HTML if parsed.path == "/live_chat_replay" else CHAT_HTML)
     else:
         route.fulfill(status=404, body="Synthetic route not found")
 
@@ -276,24 +308,116 @@ def run(chromium_path, headed=False):
             assert unchanged["session"]["stats"]["totals"]["USD"] == "10000000"
             print("PASS video navigation isolation")
 
-            replay_url = f"https://www.youtube.com/live_chat_replay?v={VIDEO_ID}"
+            # Replay capture uses a normal watch page with a chat-replay iframe.
+            replay_url = f"https://www.youtube.com/watch?v={VIDEO_ID}&replay=1"
             replay_page = context.new_page()
             replay_page.goto(replay_url)
-            replay_page.wait_for_selector("#items")
+            replay_frame = replay_page.frame(url=lambda url: "/live_chat_replay?" in url)
+            assert replay_frame, "Synthetic chat-replay iframe failed to load"
+            replay_frame.wait_for_selector("#items")
             replay_tab_id = worker.evaluate(
                 "async url => (await chrome.tabs.query({url}))[0].id", replay_url
             )
             replay = request(dashboard, {"type": "START_SESSION", "tabId": replay_tab_id})["session"]
+            replay_id = replay["id"]
+            wait_stats(dashboard, replay_id, {
+                "chatCount": 1, "countedPaidCount": 3, "unresolvedPaidCount": 0,
+                "totals": {"USD": "6000000", "EUR": "2500000"},
+            })
             dashboard.wait_for_function(
                 """async sessionId => {
                   const result = await chrome.runtime.sendMessage({type:'GET_SESSION', sessionId});
-                  return result.ok && result.session.collectorState === 'replay';
-                }""", arg=replay["id"], timeout=12000,
+                  return result.ok && result.session.collectorState === 'replay'
+                    && result.session.captureMode === 'replay';
+                }""", arg=replay_id, timeout=12000,
             )
-            replay_state = request(dashboard, {"type": "GET_SESSION", "sessionId": replay["id"]})["session"]
-            assert replay_state["eventCount"] == 0
-            request(dashboard, {"type": "PAUSE_SESSION", "sessionId": replay["id"]})
-            print("PASS replay is identified and not collected as live data")
+            replay_export = request(dashboard, {"type": "EXPORT_SESSION", "sessionId": replay_id})
+            replay_events = {event["eventId"]: event for event in replay_export["events"]}
+            assert len(replay_events) == 4
+            assert all(event["captureMode"] == "replay" for event in replay_events.values())
+            assert replay_events["yt:replay-chat"]["replayOffsetSeconds"] == 0
+            assert replay_events["yt:replay-paid"]["replayOffsetSeconds"] == 3723
+            assert replay_events["yt:replay-sticker"]["replayOffsetSeconds"] == -5
+            assert replay_events["yt:replay-unknown-time"]["replayOffsetSeconds"] is None
+            assert replay_events["yt:replay-paid"]["displayTimestamp"] == "1:02:03"
+            assert "T" in replay_events["yt:replay-paid"]["observedAt"]
+            print("PASS replay comments, paid events, source mode and original timeline timestamps")
+
+            # Rewinding replaces renderers with the same IDs; counts and first
+            # observation times must survive both a new DOM element and resume.
+            replay_markup = replay_frame.locator("#items").inner_html()
+            replay_frame.evaluate("html => document.querySelector('#items').innerHTML = html", replay_markup)
+            dashboard.wait_for_timeout(1600)
+            rewound = request(dashboard, {"type": "EXPORT_SESSION", "sessionId": replay_id})
+            assert rewound["session"]["eventCount"] == 4
+            assert rewound["session"]["stats"]["totals"] == {"USD": "6000000", "EUR": "2500000"}
+            assert all(event["observedAt"] == replay_events[event["eventId"]]["observedAt"]
+                       for event in rewound["events"])
+            print("PASS replay rewind deduplicates stable IDs without inflating donations")
+
+            # The timestamp can temporarily disappear as an existing row hydrates.
+            replay_frame.locator("#replay-paid #timestamp").evaluate("node => node.textContent = ''")
+            dashboard.wait_for_timeout(1600)
+            hydrated_replay = request(dashboard, {"type": "EXPORT_SESSION", "sessionId": replay_id})
+            hydrated_paid = next(event for event in hydrated_replay["events"]
+                                 if event["eventId"] == "yt:replay-paid")
+            assert hydrated_paid["replayOffsetSeconds"] == 3723
+            assert hydrated_paid["displayTimestamp"] == "1:02:03"
+            replay_frame.locator("#replay-paid #timestamp").evaluate("node => node.textContent = '1:02:03'")
+
+            replay_frame.evaluate("""() => {
+                const repeated = document.querySelector('#replay-paid').cloneNode(true);
+                repeated.id = 'replay-paid-distinct';
+                document.querySelector('#items').appendChild(repeated);
+            }""")
+            wait_stats(dashboard, replay_id, {
+                "countedPaidCount": 4, "totals": {"USD": "11000000", "EUR": "2500000"},
+            })
+            print("PASS identical replay text with a different stable ID remains a separate purchase")
+
+            paused_replay = request(dashboard, {"type": "PAUSE_SESSION", "sessionId": replay_id})
+            assert paused_replay["session"]["status"] == "paused"
+            append_row(replay_frame, """<yt-live-chat-text-message-renderer id="replay-paused">
+              <span id="timestamp">2:00:00</span><span id="author-name">Replay paused</span>
+              <span id="message">Loaded while collection is paused</span>
+              </yt-live-chat-text-message-renderer>""")
+            dashboard.wait_for_timeout(1600)
+            paused_state = request(dashboard, {"type": "GET_SESSION", "sessionId": replay_id})["session"]
+            assert paused_state["stats"]["chatCount"] == 1
+            request(dashboard, {"type": "RESUME_SESSION", "sessionId": replay_id, "tabId": replay_tab_id})
+            wait_stats(dashboard, replay_id, {
+                "chatCount": 2, "countedPaidCount": 4, "totals": {"USD": "11000000"},
+            })
+            final_replay = request(dashboard, {"type": "EXPORT_SESSION", "sessionId": replay_id})
+            assert final_replay["session"]["eventCount"] == 6
+            replay_csv = dashboard.evaluate("events => StreamStudyCore.toCsv(events)", final_replay["events"])
+            csv_rows = {row["eventId"]: row for row in csv_module.DictReader(io.StringIO(replay_csv.lstrip("\ufeff")))}
+            assert csv_rows["yt:replay-paid"]["captureMode"] == "replay"
+            assert csv_rows["yt:replay-paid"]["replayOffsetSeconds"] == "3723"
+            assert csv_rows["yt:replay-sticker"]["replayOffsetSeconds"] == "-5"
+            assert csv_rows["yt:replay-unknown-time"]["replayOffsetSeconds"] == ""
+            assert csv_rows["yt:replay-paused"]["replayOffsetSeconds"] == "7200"
+            request(dashboard, {"type": "PAUSE_SESSION", "sessionId": replay_id})
+            print("PASS replay pause/resume, independent observation time and timeline CSV export")
+
+            # A purchase seen live can reappear in replay under the same ID.
+            # It should gain timeline context without increasing the total.
+            append_row(replay_frame, """<yt-live-chat-paid-message-renderer id="paid-initial">
+              <span id="timestamp">0:20</span><span id="author-name">Supporter</span>
+              <span id="purchase-amount">USD 5.00</span><span id="message">Good stream</span>
+              </yt-live-chat-paid-message-renderer>""")
+            # A session previously recorded live can be continued from replay.
+            request(dashboard, {"type": "RESUME_SESSION", "sessionId": session_id, "tabId": replay_tab_id})
+            wait_stats(dashboard, session_id, {"totals": {"USD": "21000000", "EUR": "5000000"}})
+            mixed = request(dashboard, {"type": "EXPORT_SESSION", "sessionId": session_id})
+            assert mixed["session"]["captureMode"] == "mixed"
+            shared_purchase = [event for event in mixed["events"] if event["eventId"] == "yt:paid-initial"]
+            assert len(shared_purchase) == 1
+            assert shared_purchase[0]["replayOffsetSeconds"] == 20
+            assert any(event.get("captureMode") == "live" for event in mixed["events"])
+            assert any(event.get("captureMode") == "replay" for event in mixed["events"])
+            request(dashboard, {"type": "PAUSE_SESSION", "sessionId": session_id})
+            print("PASS session records both live and replay sources when continued on the same video")
 
             demo = request(dashboard, {"type": "CREATE_DEMO"})["session"]
             assert demo["isDemo"] and demo["id"] != session_id

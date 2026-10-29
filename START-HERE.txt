@@ -7,13 +7,31 @@ Use desktop Google Chrome or Microsoft Edge.
 3. Turn on Developer mode.
 4. Click Load unpacked and choose the folder containing manifest.json.
    From GitHub's main-branch ZIP, that folder is sym-main.
-5. Open a currently live YouTube stream. Refresh the page if it was already open.
-6. Expand its chat and choose Live chat instead of Top chat.
+5. Open a YouTube livestream or recording. Refresh if it was already open.
+6. Expand Live chat or Chat replay. Choose the unfiltered view if available.
 7. Click the browser's Extensions puzzle icon, then Stream Study.
 8. In the notebook that opens, click Start capture.
 
 The YouTube tab must remain open and your computer must stay awake.
 You can close the notebook tab while capture runs.
+
+FOR A REPLAY
+
+- The recording must have YouTube Chat replay available.
+- Move the video to the beginning and pause it before starting capture.
+- Start capture, then play the video. Use normal speed for the first check.
+- The notebook should show Recording replay and video timestamps on rows.
+- Sections you skip may be missing. Play through the part you want to study.
+- Rewinding does not count the same stable message ID twice in one session.
+- Pause capture, then export CSV. Sort by replayOffsetSeconds for video order.
+- Missing timestamps remain blank; capture time is your local observation time.
+
+UPDATING FROM AN EARLIER VERSION
+
+Pause and export first. Download the latest GitHub ZIP and replace the files in
+the folder you previously loaded. Click Reload on Stream Study in the browser's
+Extensions page, then refresh YouTube and the notebook. Version should be 0.2.0.
+Keep the existing extension installed so its saved sessions stay available.
 
 FIRST CHECK
 
@@ -27,7 +45,8 @@ export buttons. Sample data is clearly labeled and stays separate from captures.
 
 If the notebook says Waiting for chat or Check connection:
 - Refresh the YouTube tab after installing the extension.
-- Confirm this is a currently live stream with an open live-chat panel.
+- Confirm Live chat or Chat replay is open. Some recordings have no chat replay.
+- For a replay, play the video so YouTube can load its chat messages.
 - Make sure the extension is allowed to read youtube.com in its browser settings.
 - Open the notebook from the extension icon on the YouTube tab again.
 
@@ -36,7 +55,7 @@ ABOUT THIS PROTOTYPE
 No API key, Google Cloud account, server, or subscription is needed.
 Your collected data stays in this browser profile.
 This prototype passed its offline code tests. A full browser test and a real
-YouTube livestream test are still outstanding.
+YouTube livestream/replay test are still outstanding.
 
 Totals cover observed Super Chats and Super Stickers with readable currencies
 and stable message IDs. Bare currency symbols such as $ may be marked Needs

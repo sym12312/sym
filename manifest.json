@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Stream Study — Public Chat Notebook",
-  "version": "0.1.0",
-  "description": "Capture loaded YouTube live-chat messages and observed Super Chat and Super Sticker purchases locally for research.",
+  "version": "0.2.0",
+  "description": "Study loaded YouTube live and replay chat, with observed Super Chat and Super Sticker purchases saved locally.",
   "permissions": ["storage", "activeTab"],
   "host_permissions": ["https://www.youtube.com/*"],
   "background": {"service_worker": "background.js", "type": "module"},

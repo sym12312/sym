@@ -66,6 +66,31 @@ export function adjustStats(stats, event, direction) {
   return stats;
 }
 
+export function updateCaptureMode(session, mode) {
+  if (!['live', 'replay'].includes(mode)) return;
+  // Sessions from 0.1.0 could only contain live data.
+  const previous = session.captureMode || (session.eventCount > 0 ? 'live' : 'unknown');
+  session.captureMode = previous === 'unknown' || previous === mode ? mode : 'mixed';
+}
+
+export function mergeObservedEvent(event, previous) {
+  if (!previous) return event;
+  // Stable message IDs are unchanged by rewinding. Preserve the first capture
+  // time and any replay timestamp that a temporary re-render omits.
+  event.lastSeenAt = event.observedAt;
+  event.observedAt = previous.observedAt;
+  event.captureOrigin = previous.captureOrigin;
+  if (previous.captureMode === 'replay' && (event.captureMode !== 'replay' || event.replayOffsetSeconds === null)) {
+    event.captureMode = 'replay';
+    event.replayOffsetSeconds = previous.replayOffsetSeconds;
+    event.displayTimestamp = previous.displayTimestamp;
+  }
+  if (!event.purchaseText && previous.purchaseText) {
+    for (const key of ['purchaseText', 'currency', 'amountMicros', 'amountIssue']) event[key] = previous[key];
+  }
+  return event;
+}
+
 export const getSession = id => transact(['sessions'], 'readonly', tx =>
   requestResult(tx.objectStore('sessions').get(id)));
 
@@ -87,6 +112,7 @@ export async function ingestEvents(sessionId, incoming) {
     if (!session) throw new Error('This session no longer exists.');
     let added = 0;
     for (const raw of incoming) {
+      updateCaptureMode(session, raw.captureMode || 'live');
       const event = {...raw, sessionId};
       if (event.supersedesEventId && event.supersedesEventId !== event.eventId) {
         const previousElement = await requestResult(store.get([sessionId, event.supersedesEventId]));
@@ -99,14 +125,7 @@ export async function ingestEvents(sessionId, incoming) {
       delete event.supersedesEventId;
       const previous = await requestResult(store.get([sessionId, event.eventId]));
       if (previous) {
-        // A re-render may fill in an amount or edit/remove a comment. Keep first observation time.
-        event.observedAt = previous.observedAt;
-        event.captureOrigin = previous.captureOrigin;
-        event.lastSeenAt = raw.observedAt;
-        // Do not erase complete purchase data when an element is temporarily empty during re-render.
-        if (!event.purchaseText && previous.purchaseText) {
-          for (const key of ['purchaseText', 'currency', 'amountMicros', 'amountIssue']) event[key] = previous[key];
-        }
+        mergeObservedEvent(event, previous);
         adjustStats(session.stats, previous, -1);
       } else {
         added += 1;

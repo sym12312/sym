@@ -25,6 +25,13 @@
     return (timeOnly ? timeFormatter : dateFormatter).format(date);
   }
   function count(value) { return Number.isFinite(Number(value)) ? Number(value).toLocaleString() : '0'; }
+  function captureModeLabel(session) {
+    if (session?.isDemo) return 'Sample data';
+    if (session?.captureMode === 'mixed') return 'Live + replay';
+    if (session?.captureMode === 'replay' || session?.collectorState === 'replay') return 'Replay';
+    if (session?.captureMode === 'live' || session?.collectorState === 'watching') return 'Live';
+    return 'Browser capture';
+  }
   function reviewNeeded(event) {
     // Keep this predicate aligned with storage.isCountable so the review filter
     // and the monetary-total exclusions describe the same records.
@@ -89,7 +96,7 @@
   function renderButtons() {
     const session = state.session;
     byId('start-button').disabled = state.busy || !Number.isInteger(state.target?.tabId) || !state.target?.videoId;
-    byId('start-button').lastChild.textContent = session ? ' Capture current stream' : ' Start capture';
+    byId('start-button').lastChild.textContent = session ? ' Capture current video' : ' Start capture';
     byId('pause-button').hidden = !session || session.status !== 'recording' || session.isDemo;
     byId('pause-button').disabled = state.busy;
     byId('resume-button').hidden = !session || session.status === 'recording' || session.isDemo;
@@ -110,7 +117,7 @@
       select.replaceChildren();
       if (!state.sessions.length) select.append(new Option('No sessions yet', ''));
       for (const session of state.sessions) {
-        const prefix = session.isDemo ? '[Sample] ' : '';
+        const prefix = session.isDemo ? '[Sample] ' : session.captureMode === 'replay' ? '[Replay] ' : session.captureMode === 'mixed' ? '[Live + replay] ' : '';
         const option = new Option(`${prefix}${session.title || session.videoId || 'Untitled stream'}`, session.id);
         option.selected = session.id === state.selectedId;
         select.append(option);
@@ -124,7 +131,7 @@
       button.type = 'button';
       button.setAttribute('aria-pressed', String(session.id === state.selectedId));
       button.append(create('strong', '', `${session.isDemo ? '◇ ' : ''}${session.title || session.videoId || 'Untitled stream'}`));
-      button.append(create('span', '', `${readableDate(session.startedAt)} · ${session.isDemo ? 'Sample data' : session.status === 'recording' ? 'Recording' : 'Paused'}`));
+      button.append(create('span', '', `${readableDate(session.startedAt)} · ${captureModeLabel(session)}${session.isDemo ? '' : session.status === 'recording' ? ' · Recording' : ' · Paused'}`));
       button.addEventListener('click', () => { if (!state.busy) refresh(session.id); });
       history.append(button);
     }
@@ -139,8 +146,9 @@
     notice.className = 'capture-notice';
     let status = 'Ready when you are';
     let message = 'Only messages loaded into the YouTube chat panel can be captured. Keep the stream tab open.';
+    text('source-mode', `YouTube · ${captureModeLabel(session)}`);
     text('capture-heading', session?.title || target?.title || 'Your next stream study starts here.');
-    text('capture-description', session ? `${session.isDemo ? 'SAMPLE SESSION · ' : ''}${session.videoId || 'Research session'}${target?.videoId && target.videoId !== session.videoId ? ` · New capture will use: ${target.title || target.videoId}` : ''}` : target ? `${target.videoId} · Ready to collect the chat loaded in this tab.` : 'Open a livestream and launch this notebook from the extension icon.');
+    text('capture-description', session ? `${session.isDemo ? 'SAMPLE SESSION · ' : ''}${session.videoId || 'Research session'}${target?.videoId && target.videoId !== session.videoId ? ` · New capture will use: ${target.title || target.videoId}` : ''}` : target ? `${target.videoId} · Ready to collect the chat loaded in this tab.` : 'Open a livestream or recording and launch this notebook from the extension icon.');
     text('started-at', readableDate(session?.startedAt));
     text('last-seen', readableDate(session?.lastHeartbeatAt, true));
     text('chat-mode', session?.chatMode || (session ? 'Unknown' : 'Not connected'));
@@ -154,27 +162,28 @@
       const last = Date.parse(session.lastHeartbeatAt || session.intervals?.at(-1)?.start || session.updatedAt || session.startedAt || '');
       const stale = !Number.isFinite(last) || Date.now() - last > 25000;
       const collectorState = String(session.collectorState || '').toLowerCase();
-      const replay = collectorState.includes('replay') || String(session.chatMode || '').toLowerCase().includes('replay');
+      const replay = collectorState === 'replay' || (session.captureMode === 'replay' && collectorState !== 'watching');
       const topChat = /top\s*chat/i.test(session.chatMode || '');
       const unavailable = /missing|unavailable|disabled|no.chat|not.found/.test(collectorState);
-      if (replay) {
-        status = 'Replay detected';
-        message = 'Chat replay is not supported by this prototype. Open a currently live stream with Live chat.';
-      } else if (stale) {
+      if (stale) {
         status = 'Check connection';
-        message = 'No recent collector check-in. The stream tab may be closed, asleep, or disconnected. Refresh it and confirm Live chat is open; capture may have gaps.';
+        message = 'No recent collector check-in. The YouTube tab may be closed, asleep, or disconnected. Refresh it and confirm its chat panel is open; capture may have gaps.';
       } else if (!session.lastHeartbeatAt || unavailable) {
         status = 'Waiting for chat';
-        message = 'Waiting for the live-chat panel. Refresh the YouTube tab after installing, open its chat, and select Live chat.';
+        message = 'Waiting for the chat panel. Refresh YouTube after installing, then open Live chat or Chat replay. Some recordings do not have chat replay.';
       } else if (topChat) {
         status = 'Recording · filtered chat';
-        message = 'Top chat filters messages. Switch the YouTube chat selector to Live chat for broader coverage.';
+        message = `Top chat filters messages. Choose the unfiltered ${replay ? 'chat replay' : 'Live chat'} view if available.${replay ? ' Keep the video playing to load messages.' : ''}`;
+      } else if (replay) {
+        status = 'Recording replay';
+        message = 'Play the video to collect its chat replay. Start at the beginning for broader coverage; skipped sections are not collected. Higher playback speeds may miss messages. Repeated stable message IDs are counted once.';
       } else {
         status = 'Recording';
         badge.className = 'status-badge live';
         message = 'Capture continues when you close this notebook. Keep the YouTube tab open. Only messages loaded by YouTube can be observed.';
       }
-      if (status !== 'Recording') { badge.className = 'status-badge warning'; notice.className = 'capture-notice warning'; }
+      if (status === 'Recording' || status === 'Recording replay') badge.className = 'status-badge live';
+      else { badge.className = 'status-badge warning'; notice.className = 'capture-notice warning'; }
     } else if (session) {
       status = 'Paused';
       message = 'Capture is paused. Saved records stay on this device. Resume to collect newly loaded chat messages.';
@@ -216,9 +225,31 @@
     body.replaceChildren();
     for (const event of events) {
       const row = create('tr');
-      const time = create('td', '', readableDate(event.observedAt, true));
-      time.title = event.observedAt || '';
-      if (event.displayTimestamp) time.append(create('span', 'row-note', `Chat: ${event.displayTimestamp}`));
+      const time = create('td');
+      if (event.captureMode === 'replay') {
+        const offset = event.replayOffsetSeconds;
+        const formatted = typeof offset === 'number' && Number.isFinite(offset)
+          ? StreamStudyCore.formatReplayOffset(offset) : '';
+        if (formatted && offset >= 0 && /^[A-Za-z0-9_-]{11}$/.test(state.session?.videoId || '')) {
+          const link = create('a', 'replay-time', `Replay ${formatted}`);
+          link.href = `https://www.youtube.com/watch?v=${state.session.videoId}&t=${Math.floor(offset)}s`;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          link.title = 'Open the video at this replay timestamp';
+          time.append(link);
+        } else {
+          time.append(document.createTextNode(formatted ? `Replay ${formatted}` : 'Replay time unavailable'));
+        }
+        if (!formatted && event.displayTimestamp) time.append(create('span', 'row-note', `Chat label: ${event.displayTimestamp}`));
+        const captured = create('span', 'row-note', `Captured ${readableDate(event.observedAt, true)}`);
+        captured.title = event.observedAt || '';
+        time.append(captured);
+      } else {
+        time.append(document.createTextNode(readableDate(event.observedAt, true)));
+        time.title = event.observedAt || '';
+        time.append(create('span', 'row-note', 'Capture time'));
+        if (event.displayTimestamp) time.append(create('span', 'row-note', `Chat: ${event.displayTimestamp}`));
+      }
       if (event.captureOrigin === 'initial') time.append(create('span', 'initial-note', 'Loaded at start'));
       const author = create('td', '', event.author || 'Name unavailable');
       const type = create('td');
@@ -242,14 +273,14 @@
         text('empty-description', 'Try another name, phrase, or event filter. Search covers the latest 200 loaded records; exports contain the full session.');
       } else if (state.session) {
         text('empty-title', state.session.status === 'recording' ? 'Listening for the conversation.' : 'No records in this session yet.');
-        text('empty-description', state.session.status === 'recording' ? 'Messages will appear when the live-chat panel loads. Keep the YouTube tab open and check that Live chat is selected.' : 'Resume capture on a live stream to add comments and paid events here.');
+        text('empty-description', state.session.status === 'recording' ? 'Messages appear when YouTube loads chat. Keep the tab open; for a recording, open Chat replay and play the video.' : 'Resume capture on a livestream or recording with chat replay to add comments and paid events.');
       } else {
         text('empty-title', 'A little observation goes a long way.');
         text('empty-description', 'Start a capture to see the conversation take shape, or explore the notebook with sample data.');
       }
     }
     const total = state.session?.eventCount || 0;
-    text('events-caption', state.session?.isDemo ? 'Sample records · Explore filtering and exports.' : state.session ? `${count(total)} saved events · Latest records shown first.` : 'Captured comments and paid events, in one place.');
+    text('events-caption', state.session?.isDemo ? 'Sample records · Explore filtering and exports.' : state.session ? `${count(total)} saved events · Latest captured first.${['replay', 'mixed'].includes(state.session.captureMode) ? ' Replay times refer to the video.' : ''}` : 'Captured comments and paid events, in one place.');
     text('display-count', state.session ? `${count(events.length)} shown from the latest ${count(state.events.length)} records · Exports include all ${count(total)}` : 'No events captured');
   }
 
@@ -260,6 +291,9 @@
     details.hidden = !session;
     log.replaceChildren();
     if (!session) return;
+    if (['replay', 'mixed'].includes(session.captureMode)) {
+      log.append(create('p', '', 'These windows show when capture ran on this device. They do not establish which parts of the video were played. Skipped sections may be missing; replay timestamps are preserved where YouTube displays them.'));
+    }
     log.append(create('h3', '', 'Requested recording windows'));
     const intervals = create('ul');
     for (const interval of session.intervals || []) intervals.append(create('li', '', `${readableDate(interval.start)} → ${interval.end ? readableDate(interval.end) : 'Still recording'}`));

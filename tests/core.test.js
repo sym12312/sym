@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import '../core.js';
 
-const { parseVideoId, parseAmount, formatMicros, csvEscape, toCsv } = globalThis.StreamStudyCore;
+const { parseVideoId, parseAmount, formatMicros, parseReplayTimestamp, formatReplayOffset, csvEscape, toCsv } = globalThis.StreamStudyCore;
 
 test('accepts only supported YouTube URL shapes and exact video IDs', () => {
   for (const url of [
@@ -11,6 +11,9 @@ test('accepts only supported YouTube URL shapes and exact video IDs', () => {
     'https://youtu.be/E1Q0kFB76VU?t=30',
     'https://m.youtube.com/shorts/E1Q0kFB76VU',
     'https://www.youtube.com/live_chat?v=E1Q0kFB76VU&is_popout=1',
+    'https://www.youtube.com/live_chat_replay?v=E1Q0kFB76VU',
+    'https://www.youtube.com/live_chat_replay/?v=E1Q0kFB76VU',
+    'https://www.youtube.com/live_chat/?v=E1Q0kFB76VU',
   ]) assert.equal(parseVideoId(url), 'E1Q0kFB76VU');
   for (const url of [
     'https://youtube.com.evil.test/watch?v=E1Q0kFB76VU',
@@ -114,4 +117,51 @@ test('CSV preserves quotes/newlines and guards against spreadsheet formulas', ()
   assert.ok(output.includes('"\'=1+1"'));
   assert.ok(output.includes('"Hi, all"'));
   assert.ok(output.endsWith('\r\n'));
+});
+
+test('replay timestamps distinguish video offsets from observation and wall-clock times', () => {
+  for (const [timestamp, seconds] of [
+    ['0:00', 0], ['00:00', 0], ['9:05', 545], ['60:01', 3601],
+    ['1:02:03', 3723], ['25:59:59', 93599], [' 02:03 ', 123],
+    ['-0:30', -30], ['-1:02:03', -3723], ['−0:30', -30], ['-0:00', 0],
+  ]) assert.equal(parseReplayTimestamp(timestamp), seconds, timestamp);
+  for (const timestamp of [
+    '', 'unknown', '12:01 PM', '12:01 AM', '2026-10-24T12:01:00Z', '1:2', '1:60',
+    '1:60:00', '1:00:60', '1:00:00:00', '1:00.5', '+1:00', '1 :00',
+    '١:٠٢', '１：０２', '1.02', '2 minutes ago', '9'.repeat(40) + ':00', null, undefined, 123,
+  ]) assert.equal(parseReplayTimestamp(timestamp), null, String(timestamp));
+});
+
+test('replay offsets format without turning missing or invalid values into zero', () => {
+  for (const [seconds, display] of [
+    [0, '0:00'], [59, '0:59'], [60, '1:00'], [3599, '59:59'],
+    [3600, '1:00:00'], [3723, '1:02:03'], [-30, '-0:30'], [-3723, '-1:02:03'],
+  ]) {
+    assert.equal(formatReplayOffset(seconds), display);
+    assert.equal(parseReplayTimestamp(display), seconds);
+  }
+  for (const invalid of [null, undefined, '', '0', NaN, Infinity, 1.5, Number.MAX_SAFE_INTEGER + 1]) {
+    assert.equal(formatReplayOffset(invalid), '');
+  }
+});
+
+test('CSV appends replay metadata while retaining timestamps and unknown values', () => {
+  const csv = toCsv([
+    {eventId: 'yt:replay', displayTimestamp: '1:02:03', observedAt: '2026-10-24T12:00:00Z',
+      captureOrigin: 'initial', captureMode: 'replay', replayOffsetSeconds: 3723},
+    {eventId: 'yt:zero', captureMode: 'replay', replayOffsetSeconds: 0},
+    {eventId: 'yt:unknown', captureMode: 'replay', replayOffsetSeconds: null},
+    {eventId: 'yt:old'},
+    {eventId: 'yt:preroll', captureMode: 'replay', replayOffsetSeconds: -5},
+    {eventId: 'yt:invalid', captureMode: 'replay', replayOffsetSeconds: '=1+1'},
+  ]).split('\r\n');
+  assert.equal(csv[0].split(',').length, 15);
+  assert.ok(csv[0].endsWith('"captureOrigin","captureMode","replayOffsetSeconds"'));
+  assert.ok(csv[1].includes('"1:02:03","2026-10-24T12:00:00Z"'));
+  assert.ok(csv[1].endsWith('"initial","replay","3723"'));
+  assert.ok(csv[2].endsWith('"replay","0"'));
+  assert.ok(csv[3].endsWith('"replay",""'));
+  assert.ok(csv[4].endsWith('"",""'));
+  assert.ok(csv[5].endsWith('"replay","-5"'));
+  assert.ok(csv[6].endsWith('"replay",""'));
 });

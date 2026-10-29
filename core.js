@@ -42,7 +42,7 @@
         if (segments.length !== 1) return null;
         id = segments[0];
       } else if (['youtube.com', 'www.youtube.com', 'm.youtube.com'].includes(hostname)) {
-        if (['/watch', '/live_chat', '/live_chat_replay'].includes(url.pathname)) {
+        if (['/watch', '/live_chat', '/live_chat_replay'].includes(url.pathname.replace(/\/$/, ''))) {
           id = url.searchParams.get('v');
         } else {
           const match = url.pathname.match(/^\/(?:live|embed|shorts)\/([A-Za-z0-9_-]{11})\/?$/);
@@ -164,6 +164,32 @@
     }
   }
 
+  // Replay rows display elapsed video time, not a date or a wall-clock time.
+  // Only parse a complete colon-delimited timestamp; do not infer missing units.
+  function parseReplayTimestamp(value) {
+    if (typeof value !== 'string' || value.length > 64) return null;
+    const match = value.trim().replace(/^\u2212/, '-').match(/^(-)?(\d+):([0-5]\d)(?::([0-5]\d))?$/);
+    if (!match) return null;
+    const first = Number(match[2]);
+    const seconds = match[4] === undefined
+      ? first * 60 + Number(match[3])
+      : first * 3600 + Number(match[3]) * 60 + Number(match[4]);
+    if (!Number.isSafeInteger(seconds)) return null;
+    return match[1] && seconds !== 0 ? -seconds : seconds;
+  }
+
+  function formatReplayOffset(seconds) {
+    if (typeof seconds !== 'number' || !Number.isSafeInteger(seconds)) return '';
+    const absolute = Math.abs(seconds);
+    const hours = Math.floor(absolute / 3600);
+    const minutes = Math.floor(absolute / 60) % 60;
+    const remainder = String(absolute % 60).padStart(2, '0');
+    const timestamp = hours
+      ? `${hours}:${String(minutes).padStart(2, '0')}:${remainder}`
+      : `${minutes}:${remainder}`;
+    return `${seconds < 0 ? '-' : ''}${timestamp}`;
+  }
+
   function csvEscape(value) {
     let text = value === null || value === undefined ? '' : String(value);
     // Prefix a literal apostrophe when spreadsheets could interpret a formula.
@@ -175,16 +201,25 @@
   const CSV_COLUMNS = [
     'sessionId', 'eventId', 'idQuality', 'type', 'author', 'message',
     'displayTimestamp', 'observedAt', 'purchaseText', 'currency',
-    'amountMicros', 'amountIssue', 'captureOrigin',
+    'amountMicros', 'amountIssue', 'captureOrigin', 'captureMode', 'replayOffsetSeconds',
   ];
 
   function toCsv(events) {
     const rows = [CSV_COLUMNS.map(csvEscape).join(',')];
     for (const event of events || []) {
-      rows.push(CSV_COLUMNS.map(column => csvEscape(event[column])).join(','));
+      rows.push(CSV_COLUMNS.map(column => {
+        // This field is a validated integer, so negative pre-roll offsets are
+        // safe numeric cells. Keep formula protection for all untrusted text.
+        if (column === 'replayOffsetSeconds') {
+          return Number.isSafeInteger(event[column]) ? `"${event[column]}"` : '""';
+        }
+        return csvEscape(event[column]);
+      }).join(','));
     }
     return '\uFEFF' + rows.join('\r\n') + '\r\n';
   }
 
-  globalThis.StreamStudyCore = Object.freeze({ parseVideoId, parseAmount, formatMicros, csvEscape, toCsv });
+  globalThis.StreamStudyCore = Object.freeze({
+    parseVideoId, parseAmount, formatMicros, parseReplayTimestamp, formatReplayOffset, csvEscape, toCsv,
+  });
 })();

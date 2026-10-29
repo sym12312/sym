@@ -1,5 +1,7 @@
 # Results and outstanding work
 
+These saved measurements describe version 0.1.0 and its 13-column CSV. Version 0.2.0 adds replay metadata and two CSV columns, so current payload sizes will differ. The large-export limitations below remain unresolved.
+
 The target is **10 Super Chats/second for two hours: 72,000 unique paid events**. These completed tests exercise production parsing, arithmetic, and serialization helpers in Node.js. They do not establish DOM collection, IndexedDB persistence, browser messaging, or real-time browser reliability.
 
 ## Measured full-volume runs

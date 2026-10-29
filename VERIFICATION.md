@@ -1,11 +1,13 @@
 # Prototype verification
 
-Status on 22 October 2026:
+Version 0.2.0 adds chat replay capture. Status on 24 October 2026:
 
-- **Passed:** all 13 offline tests for supported video URLs, exact currency arithmetic, ambiguous and malformed amounts, CSV escaping, formula protection, replacement of hydrated purchases, and separation of membership/gift records from monetary totals.
+- **Passed:** all 32 offline tests (`node --test --test-isolation=none --test-reporter=spec tests/*.test.js`). These cover currency arithmetic, timestamp parsing, numeric negative replay offsets in CSV, replay/live source labels, preservation of timestamps across re-renders, stable-record merging, and synthetic workload scheduling. Seven tests execute the production service-worker message handler with mocked browser/storage boundaries; these do not exercise real IndexedDB or browser DOM capture.
+- **Passed:** a 6,600-record offline serialization regression check (600 paid and 6,000 ordinary records), including independent validation of all 15 CSV columns and exact USD 600 totals. Command: `node --expose-gc tests/stress_offline.mjs --duration-seconds 60 --paid-rate 10 --chat-rate 100 --output /tmp/stream-study-replay-export-check.json`. This is a generated workload, not a real-time browser test.
 - **Passed:** JavaScript syntax checks for the collector, service worker, storage, shared helpers, and dashboard.
-- **Prepared, not executed:** `tests/browser_smoke.py` loads the real unpacked extension against locally fulfilled synthetic YouTube pages. It checks capture, duplicate prevention, provisional IDs, late-loaded amounts, pause draining, persistence, replay exclusion, video isolation, exports, and demo separation.
-- **Blocked:** Chromium could not launch inside the workspace sandbox because of a local socket restriction. The scoped permission request was canceled, so there is no successful browser-test result.
-- **Outstanding:** installation in desktop Chrome/Edge and validation on a real, currently live YouTube chat. The supplied sample video's live status and current markup have not been verified.
+- **Prepared, not executed:** `tests/browser_smoke.py` loads the real unpacked extension against locally fulfilled synthetic YouTube pages. It checks live and replay capture, duplicate prevention after rewind, provisional IDs, late-loaded amounts, pause draining, persistence, video isolation, exports, and demo separation. Replay tests include missing and negative timestamps, resume, and continuing a live session in replay without counting the same purchase twice. Python syntax checks pass.
+- **Blocked:** Chromium launch failed before the browser tests began with crashpad `setsockopt: Operation not permitted`. No successful browser integration result is claimed.
+- **Outstanding:** installation in desktop Chrome/Edge and validation on real YouTube live chat and chat replay. The supplied sample video's status and current markup have not been verified. Playback speed, forward seeks, rewinds, missing timestamps, and the availability of replay chat need a real-site check.
+- **Identity limitation:** synthetic navigation checks use chat-frame URLs with a video ID. Continuation-only frame URLs do not independently expose that ID; isolation from lingering frames during YouTube navigation remains unverified for those URLs.
 
-Do not treat the offline tests as evidence of complete capture on a production stream. Follow `START-HERE.txt` to perform the first live check.
+Do not treat the offline tests as evidence of complete capture on a production stream or replay. Follow `START-HERE.txt` to perform the first live or replay check. Replay capture windows record when the collector ran, not proof that every section of the recording was played or every message loaded.

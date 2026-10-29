@@ -601,7 +601,7 @@ th {
 }
 th:first-child {
   padding-left:25px;
-  width:115px;
+  width:145px;
 }
 th:nth-child(2) {
   width:145px;
@@ -670,6 +670,14 @@ td:last-child {
 }
 .row-note.review {
   color:#876124;
+}
+.replay-time {
+  color:#25684d;
+  text-underline-offset:3px;
+}
+.replay-time:focus-visible {
+  outline:2px solid #25684d;
+  outline-offset:3px;
 }
 .initial-note {
   font-size:8px;

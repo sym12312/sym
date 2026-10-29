@@ -7,6 +7,7 @@
   if ((!isLiveChat && !isReplay) || !globalThis.StreamStudyCore) return;
 
   const core = globalThis.StreamStudyCore;
+  const captureMode = isReplay ? 'replay' : 'live';
   const ROW_TYPES = {
     'YT-LIVE-CHAT-TEXT-MESSAGE-RENDERER': 'chat',
     'YT-LIVE-CHAT-PAID-MESSAGE-RENDERER': 'superchat',
@@ -116,12 +117,18 @@
       : { amountMicros: null, currency: null, amountIssue: null };
     // Empty rows often appear briefly before Polymer renders their contents.
     if (!author && !message && !purchaseText) return null;
+    const renderedTimestamp = textWithin(row, '#timestamp');
+    // YouTube may temporarily clear a row while hydrating or seeking. Keep an
+    // already observed replay timestamp; observation time is never a substitute.
+    const displayTimestamp = renderedTimestamp || (isReplay ? previous?.displayTimestamp || '' : '');
     return {
       ...identity,
       type,
       author,
       message,
-      displayTimestamp: textWithin(row, '#timestamp'),
+      displayTimestamp,
+      captureMode,
+      replayOffsetSeconds: isReplay ? core.parseReplayTimestamp(displayTimestamp) : null,
       observedAt: previous?.observedAt || new Date().toISOString(),
       purchaseText,
       ...money,
@@ -153,6 +160,7 @@
         signature,
         observedAt: event.observedAt,
         captureOrigin: event.captureOrigin,
+        displayTimestamp: event.displayTimestamp,
       });
       while (seen.size > MAX_SEEN) seen.delete(seen.keys().next().value);
     } catch (error) {
@@ -171,7 +179,7 @@
     if (!candidates.has(row)) candidates.set(row, { origin, allowDetached: true });
   }
 
-  function collectCandidates(node, origin = 'live', detachedFromMainList = false) {
+  function collectCandidates(node, origin = captureMode, detachedFromMainList = false) {
     const element = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
     if (!element) return;
     addCandidate(element.closest(ROW_SELECTOR), origin, detachedFromMainList);
@@ -183,7 +191,7 @@
   function processCandidates() {
     clearTimeout(processTimer);
     processTimer = null;
-    if (!session || session.status !== 'recording' || isReplay) {
+    if (!session || session.status !== 'recording') {
       candidates.clear();
       return;
     }
@@ -201,23 +209,23 @@
         const target = record.target.nodeType === Node.ELEMENT_NODE ? record.target : record.target.parentElement;
         const fromMainList = Boolean(target?.closest('yt-live-chat-item-list-renderer')) && !target?.closest(TICKER_SELECTOR);
         // The target is also needed when an existing text span is emptied.
-        addCandidate(target?.closest(ROW_SELECTOR), 'live');
-        for (const node of record.addedNodes) collectCandidates(node, 'live', fromMainList);
+        addCandidate(target?.closest(ROW_SELECTOR), captureMode);
+        for (const node of record.addedNodes) collectCandidates(node, captureMode, fromMainList);
         // Fast chats can remove a row before the observer callback runs. The
         // mutation's parent establishes that it came from the main chat list.
         if (fromMainList) {
-          for (const node of record.removedNodes) collectCandidates(node, 'live', true);
+          for (const node of record.removedNodes) collectCandidates(node, captureMode, true);
         }
       } else {
         const element = record.target.nodeType === Node.ELEMENT_NODE ? record.target : record.target.parentElement;
-        addCandidate(element?.closest(ROW_SELECTOR), 'live');
+        addCandidate(element?.closest(ROW_SELECTOR), captureMode);
       }
     }
     processCandidates();
   }
 
   function startObserver() {
-    if (observer || isReplay || !document.documentElement) return;
+    if (observer || !document.documentElement) return;
     observer = new MutationObserver(processMutations);
     observer.observe(document.documentElement, {
       childList: true,
@@ -261,7 +269,7 @@
         isReplay,
         pageVisibility: document.visibilityState,
         documentUrl: location.href,
-        chatPresent: Boolean(document.querySelector('yt-live-chat-item-list-renderer')) && !isReplay,
+        chatPresent: Boolean(document.querySelector('yt-live-chat-item-list-renderer')),
         online: navigator.onLine,
         pendingEvents: pending.size,
         droppedEvents,
@@ -304,7 +312,7 @@
         }
       }
       session = next;
-      if (session?.status === 'recording' && !isReplay) startObserver();
+      if (session?.status === 'recording') startObserver();
       await heartbeat();
     } catch (error) {
       recordError(error);
@@ -361,6 +369,7 @@
       const result = {
         ok: true,
         sessionId: session.id,
+        captureMode,
         events,
         droppedEvents,
         collectorErrors,

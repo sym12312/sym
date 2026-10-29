@@ -1,5 +1,5 @@
 import './core.js';
-import {blankStats, getSession, listSessions, putSession, ingestEvents, readEvents, deleteSession} from './storage.js';
+import {blankStats, getSession, listSessions, putSession, ingestEvents, readEvents, deleteSession, updateCaptureMode} from './storage.js';
 
 const {parseVideoId} = globalThis.StreamStudyCore;
 const now = () => new Date().toISOString();
@@ -85,7 +85,8 @@ async function drainBeforePause(session) {
     if (!drained?.ok || drained.sessionId !== session.id || !Array.isArray(drained.events)) {
       throw new Error('Collector could not finish saving its pending records');
     }
-    const events = drained.events.slice(0, 5000).map(sanitizeEvent).filter(Boolean);
+    const mode = drained.captureMode === 'replay' ? 'replay' : 'live';
+    const events = drained.events.slice(0, 5000).map(event => sanitizeEvent(event, mode)).filter(Boolean);
     if (events.length) await ingestEvents(session.id, events);
     // ingestEvents updates the stored totals; re-read before changing lifecycle state.
     session = await getSession(session.id);
@@ -102,11 +103,11 @@ async function drainBeforePause(session) {
 
 async function start(tabId, existingId = null) {
   const target = await getTarget(tabId);
-  if (!target) throw new Error('Open a YouTube livestream, then click the Stream Study extension icon on that tab.');
+  if (!target) throw new Error('Open a YouTube livestream or recording, then click the Stream Study extension icon on that tab.');
   const bound = await bindingFor(tabId);
   let session = existingId ? await getSession(existingId) : bound;
   if (existingId && (!session || session.isDemo || session.videoId !== target.videoId)) {
-    throw new Error('Open the same livestream to resume this session. Demo sessions cannot record live data.');
+    throw new Error('Open the same video to resume this session. Demo sessions cannot capture chat.');
   }
   if (bound && bound.id !== session?.id) await pause(bound, 'Another session started in this tab');
   if (session && session.videoId !== target.videoId) {
@@ -122,7 +123,7 @@ async function start(tabId, existingId = null) {
   if (!session) {
     const startedAt = now();
     session = {id: crypto.randomUUID(), videoId: target.videoId, tabId, title: target.title,
-      url: target.url, status: 'paused', isDemo: false, startedAt, updatedAt: startedAt,
+      url: target.url, status: 'paused', isDemo: false, captureMode: 'unknown', startedAt, updatedAt: startedAt,
       lastHeartbeatAt: null, chatMode: 'unknown', collectorState: 'waiting',
       intervals: [], gaps: [], eventCount: 0, stats: blankStats()};
   }
@@ -147,8 +148,13 @@ function collectorUrl(sender) {
   } catch { return null; }
 }
 
+function collectorMode(sender) {
+  const pathname = collectorUrl(sender)?.pathname.replace(/\/$/, '');
+  return pathname === '/live_chat_replay' ? 'replay' : pathname === '/live_chat' ? 'live' : null;
+}
+
 async function collectorSession(sender, requestedId = null) {
-  if (!sender.tab || !collectorUrl(sender)) return null;
+  if (!sender.tab || !collectorMode(sender)) return null;
   const session = await bindingFor(sender.tab.id);
   if (!session || (requestedId && requestedId !== session.id)) return null;
   const target = await getTarget(sender.tab.id);
@@ -160,7 +166,7 @@ async function collectorSession(sender, requestedId = null) {
 }
 
 const text = (value, max = 10000) => typeof value === 'string' ? value.slice(0, max) : '';
-function sanitizeEvent(raw) {
+function sanitizeEvent(raw, captureMode) {
   if (!raw || !['chat', 'superchat', 'supersticker', 'membership', 'gift'].includes(raw.type)) return null;
   const eventId = text(raw.eventId, 512);
   if (!eventId) return null;
@@ -170,7 +176,9 @@ function sanitizeEvent(raw) {
     observedAt: Number.isFinite(Date.parse(raw.observedAt)) ? new Date(raw.observedAt).toISOString() : now(),
     purchaseText: text(raw.purchaseText, 200), currency: /^[A-Z]{3}$/.test(raw.currency || '') ? raw.currency : null,
     amountMicros, amountIssue: text(raw.amountIssue, 300) || null,
-    captureOrigin: raw.captureOrigin === 'initial' ? 'initial' : 'live',
+    captureOrigin: raw.captureOrigin === 'initial' ? 'initial' : captureMode,
+    captureMode,
+    replayOffsetSeconds: captureMode === 'replay' ? globalThis.StreamStudyCore.parseReplayTimestamp(raw.displayTimestamp) : null,
     supersedesEventId: text(raw.supersedesEventId, 512) || null};
 }
 
@@ -210,26 +218,26 @@ async function handle(message, sender) {
   if (message.type === 'INGEST') {
     const session = await collectorSession(sender, message.sessionId);
     if (!session || session.status !== 'recording') return {accepted: false, reason: 'Session is paused or tab changed.'};
-    if (collectorUrl(sender)?.pathname !== '/live_chat') return {accepted: false, reason: 'Only live chat is supported.'};
-    const events = (Array.isArray(message.events) ? message.events : []).slice(0, 1000).map(sanitizeEvent).filter(Boolean);
+    const mode = collectorMode(sender);
+    const events = (Array.isArray(message.events) ? message.events : []).slice(0, 1000)
+      .map(event => sanitizeEvent(event, mode)).filter(Boolean);
     const {added} = await ingestEvents(session.id, events);
     return {accepted: true, added};
   }
   if (message.type === 'HEARTBEAT') {
     const session = await collectorSession(sender, message.sessionId);
     if (!session || session.status !== 'recording') return {accepted: false};
-    const pathname = collectorUrl(sender)?.pathname;
-    if (!['/live_chat', '/live_chat_replay'].includes(pathname)) return {accepted: false};
+    const mode = collectorMode(sender);
     if (session.lastHeartbeatAt && Date.now() - Date.parse(session.lastHeartbeatAt) > 30000) {
       appendGap(session, 'Collector heartbeat interrupted; some messages may be missing');
     }
-    const replay = message.isReplay || pathname === '/live_chat_replay';
+    const replay = mode === 'replay';
     session.lastHeartbeatAt = now();
     session.chatMode = text(message.chatMode, 120) || 'unknown';
-    session.collectorState = replay ? 'replay' : message.chatPresent === false ? 'chat-missing' : 'watching';
+    session.collectorState = message.chatPresent === false ? 'chat-missing' : replay ? 'replay' : 'watching';
+    updateCaptureMode(session, mode);
     session.pageVisibility = text(message.pageVisibility, 32);
-    if (replay) appendGap(session, 'Chat replay detected; capture is disabled');
-    if (message.chatPresent === false) appendGap(session, 'Live chat panel is not available');
+    if (message.chatPresent === false) appendGap(session, replay ? 'Chat replay panel is not available' : 'Live chat panel is not available');
     const dropped = Math.max(0, Number(message.droppedEvents) || 0);
     if (dropped > (session.reportedDroppedEvents || 0)) appendGap(session, `Collector queue dropped ${dropped} events; capture is incomplete`);
     session.reportedDroppedEvents = dropped;

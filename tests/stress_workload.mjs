@@ -2,7 +2,8 @@
 export const SESSION_ID = '00000000-0000-4000-8000-000000000001';
 export const START_MS = Date.parse('2026-01-01T00:00:00.000Z');
 export const CSV_COLUMNS = ['sessionId', 'eventId', 'idQuality', 'type', 'author', 'message',
-  'displayTimestamp', 'observedAt', 'purchaseText', 'currency', 'amountMicros', 'amountIssue', 'captureOrigin'];
+  'displayTimestamp', 'observedAt', 'purchaseText', 'currency', 'amountMicros', 'amountIssue', 'captureOrigin',
+  'captureMode', 'replayOffsetSeconds'];
 
 const TEMPLATES = [
   'Thanks for explaining your process. This is a useful session for taking research notes. ',
@@ -40,6 +41,7 @@ export function makeEvent(index, type, rate, messageLength, messageStyle, parseA
     purchaseText: paid ? 'USD 1.00' : '',
     ...(paid ? parseAmount('USD 1.00') : { currency: null, amountMicros: null, amountIssue: null }),
     captureOrigin: 'live',
+    captureMode: 'live', replayOffsetSeconds: null,
   };
 }
 

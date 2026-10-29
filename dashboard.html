@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Stream Study · Public live-chat notebook</title>
+  <title>Stream Study · Live and replay chat notebook</title>
   <link rel="stylesheet" href="dashboard.css">
   <script src="core.js" defer></script>
   <script src="dashboard.js" defer></script>
@@ -13,7 +13,7 @@
     <aside class="sidebar" aria-label="Workspace and saved sessions">
       <a class="brand" href="dashboard.html" aria-label="Stream Study home">
         <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
-        <span>Stream Study<span class="brand-subtitle">Public live-chat notebook</span></span>
+        <span>Stream Study<span class="brand-subtitle">Live and replay chat notebook</span></span>
       </a>
 
       <div class="sidebar-section">
@@ -31,11 +31,11 @@
       <div class="start-guide">
         <span class="eyebrow">Start with a stream</span>
         <ol>
-          <li>Open a YouTube livestream in another tab.</li>
-          <li>Select <strong>Live chat</strong> in its chat panel.</li>
+          <li>Open a YouTube livestream or recording in another tab.</li>
+          <li>Open <strong>Live chat</strong> or <strong>Chat replay</strong>. For a replay, start the video at the beginning.</li>
           <li>Click the Stream Study extension icon, then start capture.</li>
         </ol>
-        <p>Just installed? Refresh the YouTube tab first.</p>
+        <p>Play the video to load replay messages. Just installed? Refresh the YouTube tab first.</p>
       </div>
 
       <div class="sidebar-footer">
@@ -54,11 +54,11 @@
 
       <section class="capture-panel" aria-labelledby="capture-heading">
         <div class="capture-topline">
-          <div class="source-label"><span class="youtube-icon" aria-hidden="true">▶</span><span>YouTube · Browser capture</span></div>
+          <div class="source-label"><span class="youtube-icon" aria-hidden="true">▶</span><span id="source-mode">YouTube · Browser capture</span></div>
           <span id="status-badge" class="status-badge neutral" role="status"><span class="status-dot" aria-hidden="true"></span><span id="status-text">Ready when you are</span></span>
         </div>
         <div class="capture-heading-row">
-          <div class="capture-title-block"><h2 id="capture-heading">Your next stream study starts here.</h2><p id="capture-description" class="muted">Open a livestream and launch this notebook from the extension icon.</p></div>
+          <div class="capture-title-block"><h2 id="capture-heading">Your next stream study starts here.</h2><p id="capture-description" class="muted">Open a livestream or recording and launch this notebook from the extension icon.</p></div>
           <div class="capture-actions">
             <button id="pause-button" class="button button-secondary" type="button" hidden>Pause capture</button>
             <button id="resume-button" class="button button-secondary" type="button" hidden>Resume session</button>
@@ -93,7 +93,7 @@
         </div>
         <div class="table-wrap">
           <table id="event-table" hidden>
-            <thead><tr><th scope="col">Captured</th><th scope="col">Participant</th><th scope="col">Type</th><th scope="col">Message</th><th scope="col" class="amount-column">Amount shown</th></tr></thead>
+            <thead><tr><th scope="col">Time</th><th scope="col">Participant</th><th scope="col">Type</th><th scope="col">Message</th><th scope="col" class="amount-column">Amount shown</th></tr></thead>
             <tbody id="event-rows"></tbody>
           </table>
           <div id="empty-state" class="empty-state"><div class="empty-glyph" aria-hidden="true"><span></span><span></span><span></span></div><h3 id="empty-title">A little observation goes a long way.</h3><p id="empty-description">Start a capture to see the conversation take shape, or explore the notebook with sample data.</p></div>
